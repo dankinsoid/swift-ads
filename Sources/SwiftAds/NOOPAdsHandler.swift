@@ -1,7 +1,11 @@
 import UIKit
 
+/// No-operation ads handler for testing and fallback scenarios.
+/// 
+/// Always succeeds without displaying actual ads.
 public struct NOOPAdsHandler: AdsHandler {
 
+	/// Creates a no-operation ads handler.
 	public init() {}
 	public func initAds() async throws {}
 	@MainActor

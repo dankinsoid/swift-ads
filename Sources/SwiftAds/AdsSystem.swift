@@ -1,5 +1,8 @@
 import UIKit
 
+/// Central system for managing ad handlers.
+/// 
+/// Bootstrap once at app launch, then use `Ads` instances throughout your app.
 public enum AdsSystem {
 
 	fileprivate static var handler: AdsHandler {
@@ -15,6 +18,10 @@ public enum AdsSystem {
 	private static var setTask: Task<Void, Never>?
 	// private static var
 
+	/// Configures the global ads handler.
+	/// 
+	/// - Parameter handler: The ads handler implementation to use
+	/// - Important: Must be called exactly once during app initialization
 	public static func bootstrap(_ handler: AdsHandler) {
 		lock.withLock {
 			precondition(!wasSet, "AdsHandler shouldn't be set more than once")
@@ -52,16 +59,27 @@ public enum AdsSystem {
 	}
 }
 
+/// Main interface for displaying ads.
+/// 
+/// Create instances for specific placements or use the default instance.
 public struct Ads {
 
 	private let handler: AdsHandler
 	private let placement: String?
 
+	/// Creates an ads instance.
+	/// 
+	/// - Parameter placement: Optional placement identifier for targeting
 	public init(placement: String? = nil) {
 		handler = AdsSystem.handler
 		self.placement = placement
 	}
 
+	/// Displays an interstitial ad.
+	/// 
+	/// - Parameters:
+	///   - id: Ad unit identifier
+	///   - controller: Presenting view controller (uses top controller if nil)
 	@MainActor
 	public func showInterstitial(id: String, from controller: UIViewController? = nil) async throws {
 		guard let controller = controller ?? UIViewController.top else {
@@ -70,6 +88,11 @@ public struct Ads {
 		try await handler.showInterstitial(from: controller, id: id, placement: placement)
 	}
 
+	/// Displays a rewarded video ad.
+	/// 
+	/// - Parameters:
+	///   - id: Ad unit identifier
+	///   - controller: Presenting view controller (uses top controller if nil)
 	@MainActor
 	public func showRewarderVideo(id: String, from controller: UIViewController? = nil) async throws {
 		guard let controller = controller ?? UIViewController.top else {
@@ -78,21 +101,35 @@ public struct Ads {
 		try await handler.showRewarderVideo(from: controller, id: id, placement: placement)
 	}
 
+	/// Loads and returns a banner ad view.
+	/// 
+	/// - Parameters:
+	///   - id: Ad unit identifier
+	///   - controller: Container view controller
+	///   - size: Banner size specification
+	/// - Returns: Configured banner view ready for display
 	public func loadBanner(id: String, in controller: UIViewController, size: Size) async throws -> UIView {
 		await AdsSystem.waitAdsHandler()
 		return try await handler.loadBanner(in: controller, size: size, id: id, placement: placement)
 	}
 
+	/// Preloads an interstitial ad for faster display.
+	/// 
+	/// - Parameter id: Ad unit identifier
 	public func loadInterstitial(id: String) async throws {
 		await AdsSystem.waitAdsHandler()
 		try await handler.loadInterstitial(id: id, placement: placement)
 	}
 
+	/// Preloads a rewarded video ad for faster display.
+	/// 
+	/// - Parameter id: Ad unit identifier
 	public func loadRewarderVideo(id: String) async throws {
 		await AdsSystem.waitAdsHandler()
 		try await handler.loadRewarderVideo(id: id, placement: placement)
 	}
 
+	/// Banner ad size specifications.
 	public enum Size: Hashable {
 
 		case standart

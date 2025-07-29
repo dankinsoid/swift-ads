@@ -190,6 +190,47 @@ Benefits:
 - **Redundancy**: App continues working if one network fails
 - **Revenue Optimization**: Waterfall approach maximizes monetization
 
+## Fibonacci Retry Handler
+
+Use `FibonacciRetryAdsHandler` to add automatic retry logic with Fibonacci sequence delays:
+
+```swift
+import SwiftAds
+
+// Wrap any handler with Fibonacci retry logic
+let retryHandler = FibonacciRetryAdsHandler(
+    wrapping: YourAdNetworkHandler(),
+    maxRetries: 5,        // Default: 5 attempts
+    baseDelay: 1.0        // Default: 1 second base delay
+)
+
+// Bootstrap with retry handler
+AdsSystem.bootstrap(retryHandler)
+```
+
+The retry delays follow the Fibonacci sequence:
+- 1st retry: 1 second (1 × baseDelay)
+- 2nd retry: 1 second (1 × baseDelay) 
+- 3rd retry: 2 seconds (2 × baseDelay)
+- 4th retry: 3 seconds (3 × baseDelay)
+- 5th retry: 5 seconds (5 × baseDelay)
+
+Benefits:
+- **Transient Error Recovery**: Automatically recovers from temporary network issues
+- **Progressive Backoff**: Fibonacci sequence provides good balance between quick recovery and avoiding server overload
+- **Configurable**: Customize max retries and base delay for your needs
+
+You can combine handlers for powerful retry + fallback patterns:
+
+```swift
+let robustHandler = MultiplexAdsHandler(
+    FibonacciRetryAdsHandler(wrapping: PrimaryAdNetworkHandler()),
+    FibonacciRetryAdsHandler(wrapping: SecondaryAdNetworkHandler()),
+    NOOPAdsHandler()
+)
+AdsSystem.bootstrap(robustHandler)
+```
+
 ## Testing
 
 For testing and development, use the built-in `NOOPAdsHandler`:

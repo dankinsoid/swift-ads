@@ -1,13 +1,22 @@
 import UIKit
 
+/// Ads handler that tries multiple handlers in sequence until one succeeds.
+/// 
+/// Useful for implementing fallback chains and maximizing ad fill rates.
 public struct MultiplexAdsHandler: AdsHandler {
 	
 	private let handlers: [AdsHandler]
 	
+	/// Creates a multiplex handler with variadic handlers.
+	/// 
+	/// - Parameter handlers: Handler sequence (tried in order)
 	public init(_ handlers: AdsHandler...) {
 		self.handlers = handlers
 	}
 	
+	/// Creates a multiplex handler with handler array.
+	/// 
+	/// - Parameter handlers: Handler sequence (tried in order)
 	public init(_ handlers: [AdsHandler]) {
 		self.handlers = handlers
 	}
@@ -115,6 +124,8 @@ public struct MultiplexAdsHandler: AdsHandler {
 	}
 }
 
+/// Errors specific to multiplexed ad handling.
 public enum MultiplexError: Error {
+	/// No handlers were provided to the multiplex handler.
 	case noHandlersAvailable
 }
