@@ -190,42 +190,51 @@ Benefits:
 - **Redundancy**: App continues working if one network fails
 - **Revenue Optimization**: Waterfall approach maximizes monetization
 
-## Fibonacci Retry Handler
+## Exponential Retry Handler
 
-Use `FibonacciRetryAdsHandler` to add automatic retry logic with Fibonacci sequence delays:
+Use `ExponentialRetryAdsHandler` to add automatic retry logic with exponential backoff for **load operations only**:
 
 ```swift
 import SwiftAds
 
-// Wrap any handler with Fibonacci retry logic
-let retryHandler = FibonacciRetryAdsHandler(
+// Wrap any handler with exponential retry logic
+let retryHandler = ExponentialRetryAdsHandler(
     wrapping: YourAdNetworkHandler(),
-    maxRetries: 5,        // Default: 5 attempts
-    baseDelay: 1.0        // Default: 1 second base delay
+    maxRetries: 6        // Default: 6 attempts
 )
 
 // Bootstrap with retry handler
 AdsSystem.bootstrap(retryHandler)
 ```
 
-The retry delays follow the Fibonacci sequence:
-- 1st retry: 1 second (1 × baseDelay)
-- 2nd retry: 1 second (1 × baseDelay) 
-- 3rd retry: 2 seconds (2 × baseDelay)
-- 4th retry: 3 seconds (3 × baseDelay)
-- 5th retry: 5 seconds (5 × baseDelay)
+The retry delays follow exponential backoff (only for load functions):
+- 1st retry: 2 seconds (2^1)
+- 2nd retry: 4 seconds (2^2)
+- 3rd retry: 8 seconds (2^3)
+- 4th retry: 16 seconds (2^4)
+- 5th retry: 32 seconds (2^5)
+- 6th retry: 64 seconds (2^6)
+
+**Load Functions with Retry:**
+- `loadBanner()` - Retries with exponential backoff
+- `loadInterstitial()` - Retries with exponential backoff  
+- `loadRewarderVideo()` - Retries with exponential backoff
+
+**Show Functions (No Retry):**
+- `showInterstitial()` - No retry (immediate success/failure)
+- `showRewarderVideo()` - No retry (immediate success/failure)
 
 Benefits:
-- **Transient Error Recovery**: Automatically recovers from temporary network issues
-- **Progressive Backoff**: Fibonacci sequence provides good balance between quick recovery and avoiding server overload
-- **Configurable**: Customize max retries and base delay for your needs
+- **Load Reliability**: Automatically recovers from temporary network issues during ad loading
+- **Smart Backoff**: Exponential delays prevent server overload while maximizing success rate
+- **Show Performance**: No delays on show operations for immediate user experience
 
 You can combine handlers for powerful retry + fallback patterns:
 
 ```swift
 let robustHandler = MultiplexAdsHandler(
-    FibonacciRetryAdsHandler(wrapping: PrimaryAdNetworkHandler()),
-    FibonacciRetryAdsHandler(wrapping: SecondaryAdNetworkHandler()),
+    ExponentialRetryAdsHandler(wrapping: PrimaryAdNetworkHandler()),
+    ExponentialRetryAdsHandler(wrapping: SecondaryAdNetworkHandler()),
     NOOPAdsHandler()
 )
 AdsSystem.bootstrap(robustHandler)
@@ -279,6 +288,10 @@ Analytics.track("ad_displayed", properties: ["placement": "game_over"])
 // Use remote config for ad IDs
 let adId = RemoteConfigs.string("interstitial_ad_id", default: "default-ad-id")
 try await ads.showInterstitial(id: adId)
+
+// Combine with retry handler
+let handler = MyAdNetworkHandler().withExponentialRetry()
+AdsSystem.bootstrap(handler)
 ```
 
 ## Requirements
