@@ -66,6 +66,7 @@ public struct Ads {
 
 	private let handler: AdsHandler
 	private let placement: String?
+	private let loadingTasks = LoadingTasks()
 
 	/// Creates an ads instance.
 	/// 
@@ -85,6 +86,12 @@ public struct Ads {
 		guard let controller = controller ?? UIViewController.top else {
 			throw ThereIsNoViewControllerOnTheScreen()
 		}
+		
+		// Load ad if not already loaded/loading
+		try await loadingTasks.loadIfNeeded(id: id, type: .interstitial) {
+			try await loadInterstitial(id: id)
+		}
+		
 		try await handler.showInterstitial(from: controller, id: id, placement: placement)
 	}
 
@@ -98,6 +105,12 @@ public struct Ads {
 		guard let controller = controller ?? UIViewController.top else {
 			throw ThereIsNoViewControllerOnTheScreen()
 		}
+		
+		// Load ad if not already loaded/loading
+		try await loadingTasks.loadIfNeeded(id: id, type: .rewarderVideo) {
+			try await loadRewarderVideo(id: id)
+		}
+		
 		try await handler.showRewarderVideo(from: controller, id: id, placement: placement)
 	}
 
@@ -118,7 +131,9 @@ public struct Ads {
 	/// - Parameter id: Ad unit identifier
 	public func loadInterstitial(id: String) async throws {
 		await AdsSystem.waitAdsHandler()
-		try await handler.loadInterstitial(id: id, placement: placement)
+		try await loadingTasks.executeLoad(id: id, type: .interstitial) {
+			try await handler.loadInterstitial(id: id, placement: placement)
+		}
 	}
 
 	/// Preloads a rewarded video ad for faster display.
@@ -126,7 +141,9 @@ public struct Ads {
 	/// - Parameter id: Ad unit identifier
 	public func loadRewarderVideo(id: String) async throws {
 		await AdsSystem.waitAdsHandler()
-		try await handler.loadRewarderVideo(id: id, placement: placement)
+		try await loadingTasks.executeLoad(id: id, type: .rewarderVideo) {
+			try await handler.loadRewarderVideo(id: id, placement: placement)
+		}
 	}
 
 	/// Banner ad size specifications.
@@ -141,6 +158,53 @@ public struct Ads {
 }
 
 private struct ThereIsNoViewControllerOnTheScreen: Error {}
+
+/// Manages loading tasks to prevent duplicate loads and coordinate show/load operations.
+private final class LoadingTasks {
+	private var tasks: [String: Task<Void, Error>] = [:]
+	private let lock = NSRecursiveLock()
+	
+	/// Executes a load operation, ensuring only one load per ad unit ID.
+	func executeLoad(id: String, type: AdType, operation: @escaping () async throws -> Void) async throws {
+		let key = "\(type.rawValue):\(id)"
+		
+		let task = lock.withLock { () -> Task<Void, Error>? in
+			if let existingTask = tasks[key] {
+				return existingTask
+			}
+			
+			let newTask = Task { [weak self] in
+				do {
+					try await operation()
+					// Keep successful task in cache (don't remove)
+				} catch {
+					// Remove failed task so it can be retried
+					self?.lock.withLock {
+						self?.tasks.removeValue(forKey: key)
+					}
+					throw error
+				}
+			}
+			tasks[key] = newTask
+			return newTask
+		}
+		
+		if let task = task {
+			try await task.value
+		}
+	}
+	
+	/// Loads an ad if not already loading, or waits for existing load to complete.
+	func loadIfNeeded(id: String, type: AdType, loadOperation: @escaping () async throws -> Void) async throws {
+		try await executeLoad(id: id, type: type, operation: loadOperation)
+	}
+}
+
+/// Ad types for tracking loading operations.
+private enum AdType: String {
+	case interstitial
+	case rewarderVideo
+}
 
 private extension UIViewController {
 
