@@ -161,6 +161,11 @@ struct MyAdMobHandler: AdsHandler {
 AdsSystem.bootstrap(MyAdMobHandler())
 ```
 
+### Example Implementation
+
+For a complete handler implementation example, see:
+- [**AppLovinAdsHandler**](https://github.com/dankinsoid/AppLovinAdsHandler) - Full AppLovin integration with SwiftAds
+
 ## Multiplex Handler (Fallback Support)
 
 Use `MultiplexAdsHandler` to combine multiple ad networks with automatic fallback:
