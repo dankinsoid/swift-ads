@@ -1,5 +1,5 @@
-import XCTest
 @testable import SwiftAds
+import XCTest
 
 final class SwiftAdsTests: XCTestCase {
     func testNOOPHandler() async throws {
